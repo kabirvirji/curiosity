@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+import requests
+import argparse
+import json
+import re
+import sys
+import itertools
+
+# pass arguments to organize songs by various values
+
+parser = argparse.ArgumentParser(description='Get audio features')
+parser.add_argument("-u", "--playlist-uri", required=True, help="Spotify Playlist URI")
+parser.add_argument("-t", "--token", required=True, help="Spotify Bearer Token")
+args = vars(parser.parse_args())
+seed_playlist_uri, token = args['playlist_uri'], args['token']
+seed_playlist_id = seed_playlist_uri[17:]
+
+auth_header = {"Authorization": "Bearer " + token}
+get_id = requests.get("https://api.spotify.com/v1/me", headers=auth_header)
+
+if get_id.ok:
+    id = json.loads(get_id.text)["id"]
+else:
+    print("\n\tInvalid Spotify Token. Generate a token here: https://developer.spotify.com/console/get-current-user-top-artists-and-tracks")
+    sys.exit()
+
+get_tracks_url = 'https://api.spotify.com/v1/playlists/' + seed_playlist_id + '/tracks?offset=0&limit=50'
+print(get_tracks_url)
+# spotify:playlist:5BgxnEzkF1HM1ucHm5gff1
+# %2C is comma
+
+get_tracks = requests.get(get_tracks_url, headers=auth_header)
+
+track_objects = json.loads(get_tracks.text)["items"]
+tracks = []
+for obj in track_objects:
+    track_id = obj['track']['id'], obj['track']['name']
+    tracks.append(track_id)
+
+query_ids = ''
+for i, track_id in enumerate(tracks):
+    if i == len(tracks) - 1:
+        query_ids += track_id[0]
+    else:
+        query_ids += str(track_id[0]) + '%2C'
+
+get_audio_features_url = 'https://api.spotify.com/v1/audio-features?ids=' + query_ids
+
+get_audio_features = requests.get(get_audio_features_url, headers=auth_header)
+
+audio_objects = json.loads(get_audio_features.text)['audio_features']
+
+for i, obj in enumerate(audio_objects):
+    print('\n')
+    print(tracks[i][1])
+    print('tempo: ', obj['tempo'])
+    print('valence', obj['valence'])
+    print('speechiness', obj['speechiness'])
+    print('instrumentalness', obj['instrumentalness'])
+    print('energy', obj['energy'])
+    print('\n')
+
+    
+    
+# a = sorted(tracks, key=lambda x: x['bpm_difference'])
